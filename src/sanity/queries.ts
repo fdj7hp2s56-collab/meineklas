@@ -49,3 +49,5 @@ export const projectQuery = groq`*[_type == "project" && slug.current == $slug][
 }`
 
 export const slugsQuery = groq`*[_type == "project" && defined(slug.current)].slug.current`
+
+export const legalQuery = groq`*[_type == $type][0]{ body, _updatedAt }`

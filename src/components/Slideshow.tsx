@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Slide } from '@/lib/types'
 import { Photo, srcFor } from './Photo'
 
@@ -68,6 +68,30 @@ export function Slideshow({ slides }: { slides: Slide[] }) {
   // Touch swipe
   const touch = useRef<number | null>(null)
 
+  // Keep the info panel glued to the right edge of the photo on screen.
+  // Uses layout sizes (not the animated transforms), so it lands where the photo ends up.
+  const root = useRef<HTMLDivElement>(null)
+  const [infoX, setInfoX] = useState<number | null>(null)
+  useEffect(() => {
+    const el = root.current
+    if (!el) return
+    const measure = () => {
+      const img = el.querySelector<HTMLImageElement>('.slide.is-current img')
+      const stage = img?.closest<HTMLElement>('.slideshow-stage')
+      if (!img || !stage) return
+      setInfoX(stage.offsetLeft + img.offsetLeft + img.offsetWidth)
+    }
+    measure()
+    const img = el.querySelector<HTMLImageElement>('.slide.is-current img')
+    img?.addEventListener('load', measure)
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => {
+      img?.removeEventListener('load', measure)
+      ro.disconnect()
+    }
+  }, [index])
+
   if (!n) return <p className="empty">Add slides in the Studio → Site settings → Homepage slideshow.</p>
 
   const current = slides[index]
@@ -75,6 +99,7 @@ export function Slideshow({ slides }: { slides: Slide[] }) {
 
   return (
     <div
+      ref={root}
       className="slideshow"
       onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
       onTouchEnd={(e) => {
@@ -92,7 +117,7 @@ export function Slideshow({ slides }: { slides: Slide[] }) {
         )}
         <figure
           key={`in-${index}`}
-          className={`slide ${prev === null ? 'slide-first' : dir === 1 ? 'slide-in-next' : 'slide-in-prev'}`}
+          className={`slide is-current ${prev === null ? 'slide-first' : dir === 1 ? 'slide-in-next' : 'slide-in-prev'}`}
         >
           <Photo image={current.image} sizes="90vw" priority />
         </figure>
@@ -101,23 +126,33 @@ export function Slideshow({ slides }: { slides: Slide[] }) {
       <button className="slideshow-hit left" aria-label="Previous photo" data-cursor={`← Prev  ${counter}`} onClick={() => go(-1)} />
       <button className="slideshow-hit right" aria-label="Next photo" data-cursor={`Next →  ${counter}`} onClick={() => go(1)} />
 
-      <div className="slideshow-bar">
-        <div className="slideshow-caption">
-          {current.project ? (
-            <Link href={`/work/${current.project.slug}`} data-cursor="View project">
-              {current.project.title}&nbsp;<span className="arrow">↗</span>
-            </Link>
-          ) : (
-            <span>{current.image.caption}</span>
-          )}
+      <aside
+        className="slideshow-info"
+        style={infoX !== null ? ({ '--info-x': `${infoX}px` } as CSSProperties) : undefined}
+      >
+        <div className="slideshow-count" aria-live="polite">
+          <span className="big">{pad(index + 1)}</span>
+          <span className="of">/ {pad(n)}</span>
         </div>
         <div className="slideshow-ticks" aria-hidden>
           {slides.map((_, i) => (
             <span key={i} className={i === index ? 'is-active' : ''} />
           ))}
         </div>
-        <div className="slideshow-count">{counter}</div>
-      </div>
+        <div key={index} className="slideshow-caption">
+          {current.project ? (
+            <Link href={`/work/${current.project.slug}`} data-cursor="View project">
+              {current.project.title}&nbsp;<span className="arrow">↗</span>
+            </Link>
+          ) : (
+            current.image.caption && <span>{current.image.caption}</span>
+          )}
+        </div>
+        <div className="slideshow-nav">
+          <button onClick={() => go(-1)} aria-label="Previous photo">← Prev</button>
+          <button onClick={() => go(1)} aria-label="Next photo">Next →</button>
+        </div>
+      </aside>
     </div>
   )
 }

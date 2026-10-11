@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { Cursor } from '@/components/Cursor'
 import { Header } from '@/components/Header'
+import { LegalLinks } from '@/components/LegalLinks'
 import { SmoothScroll } from '@/components/SmoothScroll'
-import { getSettings } from '@/lib/data'
+import { getProjects, getSettings } from '@/lib/data'
 import { isConfigured } from '@/sanity/env'
 import '../globals.css'
 
@@ -17,12 +18,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
-  const settings = await getSettings()
+  const [settings, projects] = await Promise.all([getSettings(), getProjects()])
   return (
     <div className="site">
       <SmoothScroll />
       <Cursor />
-      <Header title={settings.title || 'Your Name'} />
+      <Header title={settings.title || 'Your Name'} count={projects.length} />
+      <LegalLinks />
       {!isConfigured && (
         <div className="demo-banner">Demo content — connect Sanity to show your own photos (see README)</div>
       )}
